@@ -16,6 +16,7 @@ import {
   GEAR_SMALL_RADIUS,
   GEAR_INTERMEDIATE_RADIUS,
   GEAR_MAIN_RADIUS,
+  GEAR_THICKNESS,
   MAIN_SHAFT_LENGTH,
   NACELLE_CENTER_HEIGHT,
   NACELLE_LENGTH,
@@ -48,8 +49,12 @@ export function Turbine() {
   const shaftBaseZ = nacelleFrontZ - MAIN_SHAFT_LENGTH;
   const discZ = nacelleFrontZ - MAIN_SHAFT_LENGTH * 0.32;
   const gearboxZ = shaftBaseZ - 0.55;
-  const secondaryShaftZ = gearboxZ - SECONDARY_SHAFT_LENGTH / 2 - 0.35;
-  const generatorZ = secondaryShaftZ - SECONDARY_SHAFT_LENGTH / 2 - GENERATOR_LENGTH / 2 - 0.1;
+  // Pequeño solape para que las piezas se vean físicamente conectadas
+  // (sin huecos) ahora que la carcasa de la caja de engranajes se oculta
+  // en las vistas Interior/Transmisión.
+  const GEAR_OVERLAP = 0.08;
+  const secondaryShaftZ = gearboxZ + GEAR_THICKNESS - SECONDARY_SHAFT_LENGTH / 2 + GEAR_OVERLAP;
+  const generatorZ = secondaryShaftZ - SECONDARY_SHAFT_LENGTH / 2 - GENERATOR_LENGTH / 2 + GEAR_OVERLAP;
 
   useFrame(() => {
     const r = rotationRef.current;
@@ -148,6 +153,7 @@ export function Turbine() {
               smallGearRef={smallGearRef}
               onSelect={handleSelect}
               highlightedId={selectedComponent?.id ?? null}
+              showCasing={viewMode === "corte"}
             />
             <SecondaryShaft
               positionX={SMALL_OFFSET_X}

@@ -58,14 +58,14 @@ export function Scene() {
           ref={controlsRef}
           makeDefault
           enableDamping
-          dampingFactor={0.08}
+          dampingFactor={0.06}
           enablePan
-          panSpeed={0.9}
-          rotateSpeed={0.75}
-          zoomSpeed={0.9}
-          minDistance={1.5}
-          maxDistance={260}
-          maxPolarAngle={Math.PI / 2 - 0.02}
+          screenSpacePanning
+          panSpeed={1}
+          rotateSpeed={0.85}
+          zoomSpeed={1}
+          minDistance={0.8}
+          maxDistance={280}
         />
         <CameraController controlsRef={controlsRef} />
       </Canvas>

@@ -16,6 +16,7 @@ interface GearboxProps {
   smallGearRef: React.MutableRefObject<THREE.Group | null>;
   onSelect: (id: string) => void;
   highlightedId: string | null;
+  showCasing: boolean;
 }
 
 // Desplazamiento del engranaje intermedio para que "engrane" visualmente
@@ -30,14 +31,19 @@ export function Gearbox({
   smallGearRef,
   onSelect,
   highlightedId,
+  showCasing,
 }: GearboxProps) {
   return (
     <group position={[0, 0, positionZ]}>
-      {/* Carcasa abierta de la caja de engranajes (marco estructural) */}
-      <mesh position={[SMALL_OFFSET_X * 0.35, 0, 0]}>
-        <boxGeometry args={[SMALL_OFFSET_X + GEAR_SMALL_RADIUS + 0.3, GEAR_MAIN_RADIUS * 2.3, GEAR_THICKNESS * 2.6]} />
-        <primitive attach="material" object={darkMetalMaterial} />
-      </mesh>
+      {/* Carcasa de la caja de engranajes: solo se muestra en la vista de
+          Corte. En Interior y Transmisión se oculta por completo para que
+          los engranajes queden totalmente visibles y sin obstrucciones. */}
+      {showCasing && (
+        <mesh position={[SMALL_OFFSET_X * 0.35, 0, 0]}>
+          <boxGeometry args={[SMALL_OFFSET_X + GEAR_SMALL_RADIUS + 0.3, GEAR_MAIN_RADIUS * 2.3, GEAR_THICKNESS * 2.6]} />
+          <primitive attach="material" object={darkMetalMaterial} />
+        </mesh>
+      )}
 
       <group position={[0, 0, GEAR_THICKNESS * 1.5]}>
         <Gear

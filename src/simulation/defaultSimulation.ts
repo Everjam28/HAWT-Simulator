@@ -59,4 +59,5 @@ export const SCENARIOS: ScenarioDefinition[] = [
   },
 ];
 
-export const MAX_CHART_POINTS = 60;
+export const MAX_CHART_POINTS = 120;
+export const CHART_WINDOW_SECONDS = 60; // ventana de tiempo simulado que cubren las gráficas

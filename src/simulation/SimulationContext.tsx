@@ -8,7 +8,16 @@ import React, {
   useState,
 } from "react";
 import { computeTelemetry } from "./physics";
-import { DEFAULT_SIMULATION_INPUTS, MAX_CHART_POINTS, SCENARIOS, SLIDER_RANGES } from "./defaultSimulation";
+import {
+  CHART_WINDOW_SECONDS,
+  DEFAULT_SIMULATION_INPUTS,
+  MAX_CHART_POINTS,
+  SCENARIOS,
+  SLIDER_RANGES,
+} from "./defaultSimulation";
+import { ImportedSimulinkData, parseSimulinkFile } from "./simulinkImport";
+
+const CHART_SAMPLE_INTERVAL = CHART_WINDOW_SECONDS / MAX_CHART_POINTS; // segundos simulados entre puntos
 import {
   CameraPreset,
   ChartPoint,
@@ -62,6 +71,11 @@ interface SimulationContextValue {
   showLabels: boolean;
   toggleShowLabels: () => void;
 
+  simulinkData: ImportedSimulinkData | null;
+  importSimulinkFile: (file: File) => Promise<void>;
+  clearSimulinkData: () => void;
+  simulinkImportError: string | null;
+
   telemetry: TelemetrySnapshot;
   charts: ChartHistories;
 
@@ -84,6 +98,8 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   const [scenario, setScenario] = useState<ScenarioId>("normal");
   const [randomMode, setRandomMode] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
+  const [simulinkData, setSimulinkData] = useState<ImportedSimulinkData | null>(null);
+  const [simulinkImportError, setSimulinkImportError] = useState<string | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetrySnapshot>(initialTelemetry);
   const [charts, setCharts] = useState<ChartHistories>({
     wind: [],
@@ -115,6 +131,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   const elapsedRef = useRef(0);
   const lastFrameRef = useRef<number | null>(null);
   const uiThrottleRef = useRef(0);
+  const chartAccumRef = useRef(0);
   const variablePhaseRef = useRef(0);
 
   const rotationRef = useRef<RotationAngles>({
@@ -196,7 +213,9 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       r.gearIntermediate -= snapshot.rotorRpm * rpmToRadPerSec * scaledDt * 1.6; // sentido opuesto, engranaje intermedio
       r.gearSmall = r.secondary;
 
-      // Actualizar React state a una frecuencia moderada (para no saturar el render)
+      // Telemetría y sliders reactivos: se actualizan a una frecuencia
+      // moderada en tiempo real (sensación fluida, independiente de la
+      // velocidad de simulación).
       uiThrottleRef.current += dt;
       if (uiThrottleRef.current >= 0.12) {
         uiThrottleRef.current = 0;
@@ -207,6 +226,15 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         if (randomModeRef.current) {
           setInputs({ ...inputsRef.current });
         }
+      }
+
+      // Gráficas: el muestreo se basa en tiempo SIMULADO (no en tiempo
+      // real), para que siempre cubran una ventana fija de
+      // CHART_WINDOW_SECONDS sin importar la velocidad de simulación
+      // (1x, 2x, 4x...).
+      chartAccumRef.current += scaledDt;
+      if (chartAccumRef.current >= CHART_SAMPLE_INTERVAL) {
+        chartAccumRef.current = 0;
         setCharts((prev) => {
           const push = (arr: ChartPoint[], value: number): ChartPoint[] => {
             const next = [...arr, { t: snapshot.time, value }];
@@ -255,6 +283,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     lastFrameRef.current = null;
     variablePhaseRef.current = 0;
     randomRetimeRef.current = 0;
+    chartAccumRef.current = 0;
     setRandomMode(false);
     rotationRef.current = { rotor: 0, secondary: 0, gearMain: 0, gearIntermediate: 0, gearSmall: 0 };
     setInputs(DEFAULT_SIMULATION_INPUTS);
@@ -305,6 +334,27 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     setShowLabels((prev) => !prev);
   }, []);
 
+  const importSimulinkFile = useCallback(async (file: File) => {
+    try {
+      const data = await parseSimulinkFile(file);
+      setSimulinkData(data);
+      setSimulinkImportError(null);
+      // Aplica a los sliders los parámetros de entrada que traiga el archivo
+      if (Object.keys(data.parameters).length > 0) {
+        setScenario("manual");
+        setRandomMode(false);
+        setInputs((prev) => ({ ...prev, ...data.parameters }));
+      }
+    } catch (err) {
+      setSimulinkImportError(err instanceof Error ? err.message : "No se pudo leer el archivo.");
+    }
+  }, []);
+
+  const clearSimulinkData = useCallback(() => {
+    setSimulinkData(null);
+    setSimulinkImportError(null);
+  }, []);
+
   const selectComponent = useCallback((info: SelectedComponentInfo | null) => {
     setSelectedComponent(info);
   }, []);
@@ -330,6 +380,10 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       toggleRandomMode,
       showLabels,
       toggleShowLabels,
+      simulinkData,
+      importSimulinkFile,
+      clearSimulinkData,
+      simulinkImportError,
       telemetry,
       charts,
       rotationRef,
@@ -356,6 +410,10 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       toggleRandomMode,
       showLabels,
       toggleShowLabels,
+      simulinkData,
+      importSimulinkFile,
+      clearSimulinkData,
+      simulinkImportError,
       telemetry,
       charts,
       selectedComponent,
