@@ -31,7 +31,7 @@ const PARAM_ALIASES: Record<keyof SimulationInputs, string[]> = {
 
 const SERIES_ALIASES: Record<keyof ImportedSeries, string[]> = {
   time: ["time", "t", "tiempo", "tiempos"],
-  windSpeed: ["windspeed", "viento", "velocidadviento", "wind"],
+  windSpeed: ["windspeed", "viento", "velocidadviento", "wind", "v"],
   rotorRpm: ["rotorrpm", "rpmrotor", "rpmr"],
   mainShaftRpm: ["mainshaftrpm", "rpmejeprincipal", "rpmejeprimario"],
   secondaryShaftRpm: ["secondaryshaftrpm", "rpmejesecundario"],
@@ -146,6 +146,14 @@ export async function parseSimulinkFile(file: File): Promise<ImportedSimulinkDat
 
   if (!series.time || series.time.length < 2) {
     throw new Error("El archivo no contiene suficientes puntos de datos en el tiempo para graficar.");
+  }
+
+  // El flujo de Simulink (export_simulation_csv.m) reporta P_electrica en
+  // kW, siguiendo la convención del informe/guía, mientras el simulador
+  // web trabaja internamente en vatios (W). Se convierte aquí para que la
+  // curva importada se superponga a la escala correcta en las gráficas.
+  if (series.electricPower) {
+    series.electricPower = series.electricPower.map((kw) => kw * 1000);
   }
 
   return { fileName: file.name, parameters, series };
